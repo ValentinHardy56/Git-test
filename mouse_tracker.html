@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dragon Géométrique</title>
+<style>
+  /* Reset minimal */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background: #000;
+    overflow: hidden;
+    cursor: none; /* Masquer le curseur par défaut */
+  }
+
+  /* Style du dragon */
+  .dragon-container {
+    position: fixed;
+    pointer-events: none;
+  }
+
+  /* Particules de traînée */
+  .particle {
+    position: absolute;
+    background: radial-gradient(circle, rgba(255,215,0,0.8) 0%, rgba(255,215,0,0) 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<script>
+  // Variables globales
+  let mouseX = window.innerWidth / 2;
+  let mouseY = window.innerHeight / 2;
+  let particles = [];
+  let lastParticleTime = 0;
+  
+  // Créer le dragon
+  class Dragon {
+    constructor() {
+      // Créer l'élément principal
+      this.container = document.createElement('div');
+      this.container.className = 'dragon-container';
+      
+      // Position initiale
+      this.x = window.innerWidth / 2;
+      this.y = window.innerHeight / 2;
+      this.rotation = 0;
+      this.speed = 0.05; // Vitesse de suivi
+      
+      // Créer l'image du dragon
+      this.createDragon();
+      
+      // Ajouter au document
+      document.body.appendChild(this.container);
+      
+      // Animation des écailles
+      this.scaleTime = 0;
+    }
+    
+    createDragon() {
+      // Utiliser une image SVG complète du dragon géométrique
+      const svgCode = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="1000" height="500">
+        <defs>
+          <linearGradient id="dragonGold" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#FFC125;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <pattern id="scalePattern" patternUnits="userSpaceOnUse" width="30" height="30">
+            <polygon points="15,0 30,30 0,30" fill="url(#dragonGold)" stroke="gold" stroke-width="1" opacity="0.7"/>
+          </pattern>
+        </defs>
+        
+        <!-- Corps principal du dragon (ligne de base) -->
+        <path d="M200,250 C250,230 300,250 350,230 C400,210 450,230 500,250 C550,270 600,250 650,230 C700,210 750,230 800,250" 
+              stroke="gold" stroke-width="5" fill="none" filter="url(#glow)" />
+        
+        <!-- Écailles géométriques sur le corps -->
+        <g class="scales-top">
+          <!-- Première rangée d'écailles (haut) -->
+          <polygon points="200,240 220,210 240,240" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="240,230 260,200 280,230" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="280,220 300,190 320,220" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="320,230 340,200 360,230" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="360,220 380,190 400,220" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="400,210 420,180 440,210" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="440,220 460,190 480,220" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="480,240 500,210 520,240" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="520,260 540,230 560,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="560,250 580,220 600,250" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="600,240 620,210 640,240" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="640,230 660,200 680,230" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="680,220 700,190 720,220" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="720,230 740,200 760,230" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="760,240 780,210 800,240" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+        </g>
+        
+        <g class="scales-bottom">
+          <!-- Deuxième rangée d'écailles (bas) -->
+          <polygon points="220,260 240,290 260,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="260,270 280,300 300,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="300,280 320,310 340,280" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="340,270 360,300 380,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="380,260 400,290 420,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="420,270 440,300 460,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="460,280 480,310 500,280" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="500,270 520,300 540,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="540,260 560,290 580,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="580,270 600,300 620,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="620,280 640,310 660,280" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="660,270 680,300 700,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="700,260 720,290 740,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+          <polygon points="740,270 760,300 780,270" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" opacity="0.8" />
+        </g>
+        
+        <!-- Tête géométrique -->
+        <g transform="translate(150, 250) rotate(-10)">
+          <!-- Base de la tête (triangles imbriqués) -->
+          <polygon points="0,0 -40,-40 -30,-80 20,-70 50,-30" fill="url(#dragonGold)" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          
+          <!-- Mâchoire (triangles) -->
+          <polygon points="0,0 -30,20 -50,10 -40,-10" fill="url(#dragonGold)" stroke="gold" stroke-width="1" filter="url(#glow)" />
+          
+          <!-- Cornes (triangles) -->
+          <polygon points="-10,-60 -20,-90 0,-80" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="10,-60 0,-90 20,-80" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          
+          <!-- Yeux (cercles géométriques) -->
+          <circle cx="0" cy="-40" r="10" fill="rgba(255,0,0,0.7)" stroke="gold" filter="url(#glow)" />
+          <circle cx="0" cy="-40" r="5" fill="#000" class="pupil" />
+          
+          <!-- Moustaches (lignes) -->
+          <line x1="-30" y1="-20" x2="-70" y2="-30" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          <line x1="-30" y1="-10" x2="-70" y2="0" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          
+          <!-- Détails géométriques -->
+          <polygon points="-20,-50 -10,-55 0,-50" fill="gold" filter="url(#glow)" />
+          <polygon points="0,-50 10,-55 20,-50" fill="gold" filter="url(#glow)" />
+        </g>
+        
+        <!-- Queue géométrique -->
+        <g class="tail">
+          <polygon points="800,250 830,230 850,260 820,280" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="830,230 860,210 880,240 850,260" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="860,210 890,190 910,220 880,240" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="890,190 920,180 930,210 910,220" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+        </g>
+        
+        <!-- Pattes avant (triangles) -->
+        <g transform="translate(300, 250)">
+          <polygon points="0,0 -20,30 0,50 20,30" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="0,50 -10,70 0,80 10,70" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <!-- Griffes (triangles) -->
+          <polygon points="-10,70 -15,85 -5,75" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="0,80 0,95 10,85" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="10,70 15,85 5,75" fill="gold" stroke="gold" filter="url(#glow)" />
+        </g>
+        
+        <!-- Pattes arrière (triangles) -->
+        <g transform="translate(700, 250)">
+          <polygon points="0,0 -20,30 0,50 20,30" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <polygon points="0,50 -10,70 0,80 10,70" fill="url(#dragonGold)" stroke="gold" filter="url(#glow)" />
+          <!-- Griffes (triangles) -->
+          <polygon points="-10,70 -15,85 -5,75" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="0,80 0,95 10,85" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="10,70 15,85 5,75" fill="gold" stroke="gold" filter="url(#glow)" />
+        </g>
+        
+        <!-- Ailes géométriques -->
+        <g class="wing-left" transform="translate(400, 250)">
+          <polygon points="0,0 -50,-80 -20,-100 20,-90 40,-50" fill="url(#dragonGold)" stroke="gold" opacity="0.7" filter="url(#glow)" />
+          <polygon points="-50,-80 -70,-100 -40,-110 -20,-100" fill="url(#dragonGold)" stroke="gold" opacity="0.7" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="-50" y2="-80" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="-20" y2="-100" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="20" y2="-90" stroke="gold" stroke-width="2" filter="url(#glow)" />
+        </g>
+        
+        <g class="wing-right" transform="translate(600, 250)">
+          <polygon points="0,0 50,-80 20,-100 -20,-90 -40,-50" fill="url(#dragonGold)" stroke="gold" opacity="0.7" filter="url(#glow)" />
+          <polygon points="50,-80 70,-100 40,-110 20,-100" fill="url(#dragonGold)" stroke="gold" opacity="0.7" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="50" y2="-80" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="20" y2="-100" stroke="gold" stroke-width="2" filter="url(#glow)" />
+          <line x1="0" y1="0" x2="-20" y2="-90" stroke="gold" stroke-width="2" filter="url(#glow)" />
+        </g>
+        
+        <!-- Crête dorsale (triangles) -->
+        <g class="crest">
+          <polygon points="250,230 260,200 270,230" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="300,220 310,190 320,220" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="350,210 360,180 370,210" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="400,210 410,180 420,210" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="450,220 460,190 470,220" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="500,230 510,200 520,230" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="550,240 560,210 570,240" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="600,230 610,200 620,230" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="650,220 660,190 670,220" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="700,220 710,190 720,220" fill="gold" stroke="gold" filter="url(#glow)" />
+          <polygon points="750,230 760,200 770,230" fill="gold" stroke="gold" filter="url(#glow)" />
+        </g>
+      </svg>
+      `;
+      
+      // Ajouter le SVG au conteneur
+      this.container.innerHTML = svgCode;
+      
+      // Référence à la pupille pour l'animation
+      this.pupil = this.container.querySelector('.pupil');
+      
+      // Référence aux écailles pour l'animation
+      this.scalesTop = this.container.querySelector('.scales-top');
+      this.scalesBottom = this.container.querySelector('.scales-bottom');
+      this.crest = this.container.querySelector('.crest');
+      this.tail = this.container.querySelector('.tail');
+      this.wingLeft = this.container.querySelector('.wing-left');
+      this.wingRight = this.container.querySelector('.wing-right');
+    }
+    
+    update() {
+      // Calculer la nouvelle position avec un effet de lissage
+      this.x += (mouseX - this.x) * this.speed;
+      this.y += (mouseY - this.y) * this.speed;
+      
+      // Calculer la rotation en fonction de la direction
+      const dx = mouseX - this.x;
+      const dy = mouseY - this.y;
+      const targetRotation = Math.atan2(dy, dx) * (180 / Math.PI);
+      
+      // Lisser la rotation
+      const rotDiff = targetRotation - this.rotation;
+      let rotChange = rotDiff;
+      
+      // Normaliser la différence d'angle pour éviter les rotations de plus de 180 degrés
+      if (rotDiff > 180) rotChange -= 360;
+      if (rotDiff < -180) rotChange += 360;
+      
+      this.rotation += rotChange * 0.1;
+      
+      // Mettre à jour la position et la rotation de l'élément
+      this.container.style.transform = `translate(${this.x - 500}px, ${this.y - 250}px) rotate(${this.rotation}deg)`;
+      
+      // Mettre à jour la pupille pour qu'elle regarde vers la souris
+      if (this.pupil) {
+        const eyeAngle = Math.atan2(mouseY - this.y, mouseX - this.x);
+        const eyeDistance = 3;
+        
+        const pupilX = Math.cos(eyeAngle) * eyeDistance;
+        const pupilY = Math.sin(eyeAngle) * eyeDistance;
+        
+        this.pupil.setAttribute('cx', pupilX);
+        this.pupil.setAttribute('cy', -40 + pupilY);
+      }
+      
+      // Animation des écailles et autres éléments
+      this.scaleTime += 0.05;
+      
+      // Animation des écailles du haut
+      if (this.scalesTop) {
+        const scaleY = Math.sin(this.scaleTime) * 5;
+        this.scalesTop.setAttribute('transform', `translate(0, ${scaleY})`);
+      }
+      
+      // Animation des écailles du bas
+      if (this.scalesBottom) {
+        const scaleY = Math.sin(this.scaleTime + 1) * 5;
+        this.scalesBottom.setAttribute('transform', `translate(0, ${scaleY})`);
+      }
+      
+      // Animation de la crête
+      if (this.crest) {
+        const crestScale = 1 + Math.sin(this.scaleTime * 2) * 0.1;
+        this.crest.setAttribute('transform', `scale(1, ${crestScale})`);
+      }
+      
+      // Animation de la queue
+      if (this.tail) {
+        const tailAngle = Math.sin(this.scaleTime) * 10;
+        this.tail.setAttribute('transform', `rotate(${tailAngle}, 800, 250)`);
+      }
+      
+      // Animation des ailes
+      if (this.wingLeft && this.wingRight) {
+        const wingAngle = Math.sin(this.scaleTime * 0.5) * 10;
+        this.wingLeft.setAttribute('transform', `translate(400, 250) rotate(${wingAngle}, 0, 0)`);
+        this.wingRight.setAttribute('transform', `translate(600, 250) rotate(${-wingAngle}, 0, 0)`);
+      }
+      
+      // Créer des particules de traînée
+      const now = Date.now();
+      if (now - lastParticleTime > 20 && Math.hypot(dx, dy) > 3) {
+        lastParticleTime = now;
+        // Créer plusieurs particules pour un effet plus dense
+        for (let i = 0; i < 3; i++) {
+          const offsetX = Math.random() * 800 - 200;
+          const offsetY = Math.random() * 100 - 50;
+          createParticle(this.x + offsetX, this.y + offsetY);
+        }
+      }
+    }
+  }
+  
+  // Créer une particule de traînée
+  function createParticle(x, y) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    document.body.appendChild(particle);
+    
+    // Animation de disparition
+    const size = 4 + Math.random() * 10;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    
+    // Position initiale
+    particle.style.left = x + 'px';
+    particle.style.top = y + 'px';
+    
+    // Couleur aléatoire entre or et rouge
+    const hue = 30 + Math.random() * 30; // Entre jaune doré et orange
+    particle.style.background = `radial-gradient(circle, hsla(${hue}, 100%, 65%, 0.8) 0%, hsla(${hue}, 100%, 50%, 0) 70%)`;
+    
+    // Forme géométrique aléatoire pour certaines particules
+    if (Math.random() > 0.7) {
+      particle.style.borderRadius = '0';
+      particle.style.transform = `rotate(${Math.random() * 360}deg)`;
+    }
+    
+    // Ajouter à la liste des particules
+    particles.push({
+      element: particle,
+      life: 1.0,
+      x: x,
+      y: y,
+      vx: -1 + Math.random() * 2,
+      vy: -1 + Math.random() * 2,
+      size: size,
+      isTriangle: Math.random() > 0.7
+    });
+    
+    // Limiter le nombre de particules
+    if (particles.length > 150) {
+      document.body.removeChild(particles[0].element);
+      particles.shift();
+    }
+  }
+  
+  // Mettre à jour les particules
+  function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= 0.02;
+      
+      if (p.life <= 0) {
+        document.body.removeChild(p.element);
+        particles.splice(i, 1);
+        continue;
+      }
+      
+      p.x += p.vx;
+      p.y += p.vy;
+      p.element.style.left = p.x + 'px';
+      p.element.style.top = p.y + 'px';
+      p.element.style.opacity = p.life;
+      
+      // Effet de pulsation ou rotation pour les formes géométriques
+      if (p.isTriangle) {
+        p.element.style.transform = `rotate(${Date.now() * 0.1 + i * 10}deg)`;
+      } else {
+        const scale = 0.8 + Math.sin(Date.now() * 0.01 + i) * 0.2;
+        p.element.style.transform = `scale(${scale})`;
+      }
+    }
+  }
+  
+  // Créer le dragon
+  const dragon = new Dragon();
+  
+  // Boucle d'animation
+  function animate() {
+    dragon.update();
+    updateParticles();
+    requestAnimationFrame(animate);
+  }
+  
+  // Gestionnaires d'événements
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  
+  // Pour les appareils tactiles
+  document.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    mouseX = e.touches[0].clientX;
+    mouseY = e.touches[0].clientY;
+  });
+  
+  // Démarrer l'animation
+  animate();
+</script>
+</body>
+</html>
